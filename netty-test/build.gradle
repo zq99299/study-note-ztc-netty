@@ -1,20 +1,21 @@
 plugins {
-  id 'java'
+    id 'java'
 }
 
 group 'cn.mrcode.study.note_ztc_netty'
 version '1.0-SNAPSHOT'
 
 repositories {
-  mavenCentral()
+    mavenCentral()
 }
 
 dependencies {
-  testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
-  testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
-  implementation 'cn.hutool:hutool-all:5.8.4'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.8.1'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.8.1'
+    implementation 'cn.hutool:hutool-all:5.8.4'
+    implementation 'io.netty:netty-all:4.1.79.Final'
 }
 
 test {
-  useJUnitPlatform()
+    useJUnitPlatform()
 }
