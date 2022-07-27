@@ -84,7 +84,6 @@ public class TimeServer {
             // 调用 write 只是把消息放到了发送缓冲数组中。
             // 通过 flush 方法将缓冲区中的消息全部写入到 SocketChannel 中
             ctx.flush();
-            // 但是通过实际测试，在请求先进来的时候，会先执行该方法是什么原因呢？
         }
 
         @Override

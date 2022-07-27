@@ -60,10 +60,17 @@ public class TimeClient {
          */
         @Override
         public void channelActive(ChannelHandlerContext ctx) throws Exception {
+//            byte[] req = (Thread.currentThread().getName() + " 发起请求").getBytes(StandardCharsets.UTF_8);
+//            ByteBuf firstMessage = Unpooled.buffer(req.length);
+//            firstMessage.writeBytes(req);
+//            ctx.writeAndFlush(firstMessage);
+            // 粘包测试，连续发送 100 条语句
             byte[] req = (Thread.currentThread().getName() + " 发起请求").getBytes(StandardCharsets.UTF_8);
-            ByteBuf firstMessage = Unpooled.buffer(req.length);
-            firstMessage.writeBytes(req);
-            ctx.writeAndFlush(firstMessage);
+            for (int i = 0; i < 100; i++) {
+                ByteBuf firstMessage = Unpooled.buffer(req.length);
+                firstMessage.writeBytes(req);
+                ctx.writeAndFlush(firstMessage);
+            }
         }
 
         /**
