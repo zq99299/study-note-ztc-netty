@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+option java_package = "cn.mrcode.study.netty.test.protobuf";
+option java_outer_classname = "UserModule";
+
+message User {
+  string userId = 1;
+  int32 age = 2;
+  string name = 3;
+  // 重复任意次 repeated，所以对应的就是 string[]
+  repeated string favorite = 4;
+}

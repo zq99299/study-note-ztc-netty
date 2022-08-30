@@ -18,6 +18,9 @@ dependencies {
     // marshalling
     implementation 'org.jboss.marshalling:jboss-marshalling:2.1.0.Final'
     implementation 'org.jboss.marshalling:jboss-marshalling-serial:2.1.0.Final'
+
+    // protobuf
+    implementation 'com.google.protobuf:protobuf-java:3.21.4'
 }
 
 test {
