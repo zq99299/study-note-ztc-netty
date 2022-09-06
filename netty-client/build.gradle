@@ -28,7 +28,6 @@ dependencies {
 	implementation 'org.apache.commons:commons-lang3'
 
 	// 依赖 common 项目
-//	implementation project("netty-common")
 	implementation project(':netty-common')
 }
 
