@@ -1,0 +1,36 @@
+plugins {
+//    id 'java'
+    // 使用 java 库插件，表示自己是一个给别人依赖的插件
+    // 然后就可以使用 api 引用依赖，而不是 implementation
+    // implementation 定义的依赖，不会传递给引用本 jar 包的项目
+    id 'java-library'
+}
+
+group 'cn.mrcode.study.note_ztc_netty'
+version '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    api 'io.netty:netty-all:4.1.79.Final'
+    api 'com.google.guava:guava:25.1-jre'
+    api 'com.alibaba:fastjson:1.2.60'
+
+    // protobuf
+    api 'com.google.protobuf:protobuf-java:3.21.4'
+
+    // https://docs.gradle.org/current/userguide/java_library_plugin.html#sec:java_library_separation
+    // 如果不是一个 id 'java-library' ，那么就需要单独暴露哪些依赖传递给其他引用本包的项目
+//    apiElements(
+//            'io.netty:netty-all:4.1.79.Final',
+//            'com.google.guava:guava:25.1-jre',
+//            'com.alibaba:fastjson:1.2.60',
+//            'com.google.protobuf:protobuf-java:3.21.4'
+//    )
+}
+
+test {
+    useJUnitPlatform()
+}

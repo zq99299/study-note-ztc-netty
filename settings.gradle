@@ -1,3 +1,6 @@
 rootProject.name = 'study-note-ztc-netty'
 include 'netty-test'
+include 'netty-common'
+include 'netty-client'
+include 'netty-server'
 
