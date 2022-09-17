@@ -1,0 +1,30 @@
+syntax = "proto3";
+
+option java_package = "cn.mrcode.study.note_ztc_netty.nettycommon.protobuf";
+option java_outer_classname = "MessageModule";
+
+// 消息类型
+enum MessageType {
+  REQUEST = 0;
+  RESPONSE = 1;
+}
+
+enum ResultType {
+  SUCCESS = 0;
+  FAILURE = 1;
+  // 响应异常
+  EXCEPTION = 2;
+}
+
+message Message {
+  // 请求标记
+  int64  crcCode = 1;
+  MessageType messageType = 2;
+  ResultType resultType = 3;
+  // 模块
+  string module = 4;
+  // 操作类型是什么：增删改查
+  string cmd = 5;
+  // 该请求或响应的消息内容
+  bytes body = 6;
+}

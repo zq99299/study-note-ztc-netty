@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+option java_package = "cn.mrcode.study.note_ztc_netty.nettycommon.protobuf";
+option java_outer_classname = "UserModule";
+
+message User {
+  string userId = 1;
+  string userName = 2;
+}
