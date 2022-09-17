@@ -1,5 +1,6 @@
 package cn.mrcode.study.note_ztc_netty.nettyserver;
 
+import cn.mrcode.study.note_ztc_netty.nettycommon.protobuf.MessageModule;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelInitializer;
@@ -7,6 +8,10 @@ import io.netty.channel.ChannelOption;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioServerSocketChannel;
+import io.netty.handler.codec.protobuf.ProtobufDecoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import io.netty.handler.logging.LogLevel;
 import io.netty.handler.logging.LoggingHandler;
 import org.springframework.stereotype.Component;
@@ -29,7 +34,19 @@ public class Server {
                     .childHandler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel ch) throws Exception {
+                            ch.pipeline()
+                                    // varint32Frame 解码器
+                                    .addLast(new ProtobufVarint32FrameDecoder())
+                                    // 我们自定义的 Message 解码器
+                                    .addLast(new ProtobufDecoder(MessageModule.Message.getDefaultInstance()))
 
+                                    // varint32Frame 的编码器
+                                    .addLast(new ProtobufVarint32LengthFieldPrepender())
+                                    // 编码器
+                                    .addLast(new ProtobufEncoder())
+
+                                    // 最后是我们自己的业务处理器
+                                    .addLast(new ServerHandler());
                         }
                     });
             ChannelFuture cf = b.bind(8765).sync();

@@ -1,10 +1,15 @@
 package cn.mrcode.study.note_ztc_netty.nettyclient;
 
+import cn.mrcode.study.note_ztc_netty.nettycommon.protobuf.MessageModule;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
 import io.netty.channel.socket.SocketChannel;
 import io.netty.channel.socket.nio.NioSocketChannel;
+import io.netty.handler.codec.protobuf.ProtobufDecoder;
+import io.netty.handler.codec.protobuf.ProtobufEncoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32FrameDecoder;
+import io.netty.handler.codec.protobuf.ProtobufVarint32LengthFieldPrepender;
 import org.springframework.stereotype.Component;
 
 import java.util.concurrent.Executors;
@@ -37,7 +42,19 @@ public class Client {
                     .handler(new ChannelInitializer<SocketChannel>() {
                         @Override
                         protected void initChannel(SocketChannel ch) throws Exception {
+                            ch.pipeline()
+                                    // varint32Frame 解码器
+                                    .addLast(new ProtobufVarint32FrameDecoder())
+                                    // 我们自定义的 Message 解码器
+                                    .addLast(new ProtobufDecoder(MessageModule.Message.getDefaultInstance()))
 
+                                    // varint32Frame 的编码器
+                                    .addLast(new ProtobufVarint32LengthFieldPrepender())
+                                    // 编码器
+                                    .addLast(new ProtobufEncoder())
+
+                                    // 最后是我们自己的业务处理器
+                                    .addLast(new ClientHandler());
                         }
                     });
             ChannelFuture future = b.connect(host, port).sync();

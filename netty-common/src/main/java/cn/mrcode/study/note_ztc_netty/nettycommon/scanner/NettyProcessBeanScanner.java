@@ -18,7 +18,13 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 // BeanPostProcessor 后置处理器
 public class NettyProcessBeanScanner implements BeanPostProcessor {
-    private Map<String, Invoker> invokerMap = new ConcurrentHashMap<>();
+    private static Map<String, Invoker> invokerMap = new ConcurrentHashMap<>();
+
+    // 使用静态方法是为了方便外部调用
+    public static Invoker getInvoker(String module, String cmd) {
+        String targetMethodKey = module + "::" + cmd;
+        return invokerMap.get(targetMethodKey);
+    }
 
     // 当一个 bean 初始化之后，调用
     @Override
