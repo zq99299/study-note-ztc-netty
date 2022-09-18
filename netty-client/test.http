@@ -1,0 +1,5 @@
+### 保存测试
+GET http://localhost:8001/test/save
+
+### 更新测试
+GET http://localhost:8001/test/update

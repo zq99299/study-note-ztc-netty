@@ -1,6 +1,8 @@
 package cn.mrcode.study.note_ztc_netty.nettyclient;
 
+import cn.mrcode.study.note_ztc_netty.nettycommon.protobuf.MessageBuilder;
 import cn.mrcode.study.note_ztc_netty.nettycommon.protobuf.MessageModule;
+import com.google.protobuf.GeneratedMessageV3;
 import io.netty.bootstrap.Bootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -29,8 +31,14 @@ public class Client {
 
     private Channel channel;
 
-    public Client() throws InterruptedException {
-        connect(HOST, PORT);
+    public Client() {
+        new Thread(() -> {
+            try {
+                connect(HOST, PORT);
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }).start();
     }
 
     public void connect(String host, int port) throws InterruptedException {
@@ -78,4 +86,16 @@ public class Client {
             });
         }
     }
+
+    /**
+     * 调用服务
+     *
+     * @param module 模块
+     * @param cmd    方法
+     * @param data   数据请求
+     */
+    public void call(String module, String cmd, GeneratedMessageV3 data) {
+        channel.writeAndFlush(MessageBuilder.request(module, cmd, data));
+    }
+
 }

@@ -3,7 +3,7 @@ package cn.mrcode.study.note_ztc_netty.nettyserver;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = {"cn.mrcode.study.note_ztc_netty"})
 public class NettyServerApplication {
 
     public static void main(String[] args) {

@@ -23,6 +23,12 @@ import org.springframework.stereotype.Component;
 @Component
 public class Server {
     public Server() {
+        new Thread(() -> {
+            listener();
+        }).start();
+    }
+
+    private void listener() {
         NioEventLoopGroup bossGroup = new NioEventLoopGroup();
         NioEventLoopGroup workerGroup = new NioEventLoopGroup();
         ServerBootstrap b = new ServerBootstrap();
@@ -59,6 +65,5 @@ public class Server {
             workerGroup.shutdownGracefully();
             System.out.println("Netty 服务关闭");
         }
-
     }
 }
