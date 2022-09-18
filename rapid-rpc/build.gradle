@@ -1,0 +1,46 @@
+plugins {
+  id 'java-library'
+}
+
+group 'cn.mrcode.study.note_ztc_netty'
+version '1.0-SNAPSHOT'
+
+repositories {
+  mavenCentral()
+}
+
+dependencies {
+  compileOnly 'org.projectlombok:lombok:1.18.24'
+  annotationProcessor 'org.projectlombok:lombok:1.18.24'
+
+  // 添加依赖，使用 spring bean 相关的一些东西
+  implementation 'org.springframework:spring-context:5.3.22'
+  implementation 'org.springframework:spring-test:5.3.22'
+
+  // netty
+  implementation 'io.netty:netty-all:4.1.79.Final'
+
+  // 基于 protobuf 的序列化框架
+  implementation 'io.protostuff:protostuff-core:1.8.0'
+  implementation 'io.protostuff:protostuff-runtime:1.8.0'
+
+  // 代理
+  implementation 'cglib:cglib:3.3.0'
+
+  // jackson
+  implementation 'com.fasterxml.jackson:jackson-databind:2.10.0'
+  implementation 'com.fasterxml.jackson:jackson-core:2.10.0'
+
+  // ~~~工具类
+  // objenesis：大概介绍说是可以绕过默认无参构造函数进行实例化的一个工具类
+  implementation 'org.objenesis:objenesis:3.3'
+  implementation 'org.apache.commons:commons-collections4:4.4'
+  implementation 'org.apache.commons:commons-lang3:3.7'
+  implementation 'org.slf4j:slf4j-api:1.7.25'
+  implementation 'org.apache.logging.log4j:log4j-api:2.11.1'
+  implementation 'org.apache.logging.log4j:log4j-core:2.11.1'
+}
+
+test {
+  useJUnitPlatform()
+}

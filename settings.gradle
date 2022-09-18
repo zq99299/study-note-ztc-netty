@@ -3,4 +3,5 @@ include 'netty-test'
 include 'netty-common'
 include 'netty-client'
 include 'netty-server'
+include 'rapid-rpc'
 
