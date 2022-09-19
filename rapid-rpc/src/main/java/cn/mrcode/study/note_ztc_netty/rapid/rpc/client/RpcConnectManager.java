@@ -12,10 +12,8 @@ import org.apache.commons.collections4.CollectionUtils;
 
 import java.net.InetSocketAddress;
 import java.util.*;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
@@ -44,6 +42,7 @@ public class RpcConnectManager {
      * 一个地址对应一个 client 处理器；存储所有已经连接上的信息
      */
     private Map<InetSocketAddress, RpcClientHandler> connectedHandlerMap = new ConcurrentHashMap<>();
+    private CopyOnWriteArrayList connectedHandlerList = new CopyOnWriteArrayList();
 
     /**
      * 用于异步提交连接的线程池
@@ -124,6 +123,7 @@ public class RpcConnectManager {
             RpcClientHandler rpcClientHandler = connectedHandlerMap.get(remoteAddress);
             rpcClientHandler.close();
             iterator.remove();
+            connectedHandlerList.remove(rpcClientHandler);
         }
     }
 
@@ -186,22 +186,8 @@ public class RpcConnectManager {
 
     private void addHandler(InetSocketAddress socketAddress, RpcClientHandler handler) {
         connectedHandlerMap.put(socketAddress, handler);
+        connectedHandlerList.add(handler);
         signalAvailableHandler();
-    }
-
-    private ReentrantLock connectedLock = new ReentrantLock();
-    private Condition connectedCondition = connectedLock.newCondition();
-
-    /**
-     * 唤醒可用的业务执行器
-     */
-    private void signalAvailableHandler() {
-        connectedLock.lock();
-        try {
-            connectedCondition.signalAll();
-        } finally {
-            connectedLock.unlock();
-        }
     }
 
     /**
@@ -233,5 +219,61 @@ public class RpcConnectManager {
             // 这里从 channel 取出来的 SocketAddress 就是 InetSocketAddress，虽然不是和 map 里面的 key 是同一个实例
             connectedHandlerMap.remove(cacheClientHandler);
         }
+    }
+
+    private ReentrantLock connectedLock = new ReentrantLock();
+    private Condition connectedCondition = connectedLock.newCondition();
+    private volatile boolean isRunning = true;
+    private AtomicInteger handlerIdx = new AtomicInteger(0);
+
+    /**
+     * 唤醒可用的业务执行器
+     */
+    private void signalAvailableHandler() {
+        connectedLock.lock();
+        try {
+            connectedCondition.signalAll();
+        } finally {
+            connectedLock.unlock();
+        }
+    }
+
+    /**
+     * 等待新链接接入的等待方法
+     *
+     * @return
+     * @throws InterruptedException
+     */
+    private boolean waitingForAvailableHandler() throws InterruptedException {
+        connectedLock.lock();
+        try {
+            //如果在从方法返回之前可检测到等待时间已过，则为 false ，否则为 true
+            return connectedCondition.await(6000, TimeUnit.MILLISECONDS);
+        } finally {
+            connectedLock.unlock();
+        }
+    }
+
+    /**
+     * 选择一个实际的业务处理器
+     *
+     * @return
+     */
+    public RpcClientHandler chooseHandler() {
+        CopyOnWriteArrayList<RpcClientHandler> list = (CopyOnWriteArrayList) connectedHandlerList.clone();
+        int size = list.size();
+        while (isRunning && size == 0) {
+            try {
+                boolean available = waitingForAvailableHandler();
+                if (available) {
+                    // 如果可用了
+                    list = (CopyOnWriteArrayList) connectedHandlerList.clone();
+                    size = list.size();
+                }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
+            }
+        }
+        return list.get(handlerIdx.addAndGet(1) % size);
     }
 }
