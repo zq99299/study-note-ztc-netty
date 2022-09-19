@@ -42,7 +42,7 @@ public class RpcConnectManager {
      * 一个地址对应一个 client 处理器；存储所有已经连接上的信息
      */
     private Map<InetSocketAddress, RpcClientHandler> connectedHandlerMap = new ConcurrentHashMap<>();
-    private CopyOnWriteArrayList connectedHandlerList = new CopyOnWriteArrayList();
+    private CopyOnWriteArrayList<RpcClientHandler> connectedHandlerList = new CopyOnWriteArrayList();
 
     /**
      * 用于异步提交连接的线程池
@@ -274,6 +274,40 @@ public class RpcConnectManager {
                 throw new RuntimeException(e);
             }
         }
+        // 有可能上面的循环是被 stop 方法导致强制跳出来的
+        if (!isRunning) {
+            return null;
+        }
         return list.get(handlerIdx.addAndGet(1) % size);
+    }
+
+    /**
+     * 停止服务并关闭所有的服务
+     */
+    public void stop() {
+        isRunning = false;
+        for (RpcClientHandler rpcClientHandler : connectedHandlerList) {
+            rpcClientHandler.close();
+        }
+        // 唤醒一下，目的是让 chooseHandler() 方法退出来（有可能正在等待）
+        signalAvailableHandler();
+
+        // 线程资源优雅的停掉
+        threadPoolExecutor.shutdown();
+        eventLoopGroup.shutdownGracefully();
+    }
+
+    /**
+     * 重新建立连接
+     * @param handler
+     * @param socketAddress
+     */
+    public void reconnect(final RpcClientHandler handler, InetSocketAddress socketAddress) {
+        if (handler != null) {
+            handler.close();
+            connectedHandlerList.remove(handler);
+            connectedHandlerMap.remove(socketAddress);
+        }
+        connectAsync(socketAddress);
     }
 }
