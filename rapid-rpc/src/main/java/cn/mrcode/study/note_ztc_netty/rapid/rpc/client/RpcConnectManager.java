@@ -1,6 +1,8 @@
 package cn.mrcode.study.note_ztc_netty.rapid.rpc.client;
 
 import io.netty.bootstrap.Bootstrap;
+import io.netty.channel.ChannelFuture;
+import io.netty.channel.ChannelFutureListener;
 import io.netty.channel.ChannelOption;
 import io.netty.channel.EventLoopGroup;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -9,14 +11,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.CollectionUtils;
 
 import java.net.InetSocketAddress;
-import java.util.Arrays;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * 连接管理器
@@ -40,9 +41,10 @@ public class RpcConnectManager {
     }
 
     /**
-     * 一个地址对应一个 client 处理器
+     * 一个地址对应一个 client 处理器；存储所有已经连接上的信息
      */
     private Map<InetSocketAddress, RpcClientHandler> connectedHandlerMap = new ConcurrentHashMap<>();
+
     /**
      * 用于异步提交连接的线程池
      */
@@ -55,13 +57,18 @@ public class RpcConnectManager {
             new ThreadPoolExecutor.DiscardPolicy() // 拒绝策略：DiscardPolicy 是直接丢弃掉被拒绝的任务
     );
 
-    /*
-      1. 异步连接：使用线程池真正发起连接，连接失败监听、连接成功监听
-      2. 对于连接成功后，做一个缓存（管理）
-     */
+    public static void logTest() {
+        log.info("日志测试");
+    }
+
 
     /**
+     * 1. 异步连接：使用线程池真正发起连接，连接失败监听、连接成功监听
+     * 2. 对于连接成功后，做一个缓存（管理）
+     *
      * @param serverAddress 192.168.1.1:8888,192.168.1.2:8888
+     *                      当次需要建立的新的连接，注意：如果第一次给定了 2 个连接，第二次调用只给定了 1 个连接，那么会以第二次会准，
+     *                      第一次给定的连接如果不在第 2 次给定的连接里面的，则会被断开连接，并释放 netty 相关的资源
      */
     public void connect(final String serverAddress) {
         List<String> address = Arrays.asList(serverAddress.split(","));
@@ -75,7 +82,9 @@ public class RpcConnectManager {
      */
     public void updateConnectedServer(List<String> address) {
         if (CollectionUtils.isEmpty(address)) {
-            log.error("没有可用的服务地址");
+            log.info("没有可用的服务地址");
+            // 需要删除掉已有的所有链接资源
+            clearConnected(null);
             return;
         }
 
@@ -101,7 +110,21 @@ public class RpcConnectManager {
             connectAsync(socketAddress);
         }
 
-        // todo: 如果缓存中 connectedHandlerMap 存在 socketAddresses 没有的地址，需要清除该地址的相关资源
+        // 如果缓存中 connectedHandlerMap 存在 socketAddresses 没有的地址，需要清除该地址的相关资源
+        // 这里需要注意下：由于上面是异步连接，所以这里清除的时候，可能新的连接并没有被添加进来
+        // 但是对于这里的业务目的，不影响
+        Iterator<InetSocketAddress> iterator = connectedHandlerMap.keySet().iterator();
+        while (iterator.hasNext()) {
+            InetSocketAddress remoteAddress = iterator.next();
+            // 如果最新的链接里面不包含缓存中的地址，就要删掉
+            if (socketAddresses.contains(remoteAddress)) {
+                continue;
+            }
+            log.info("删除不可用的链接（当次链接列表中不包含旧的链接）：{}", remoteAddress);
+            RpcClientHandler rpcClientHandler = connectedHandlerMap.get(remoteAddress);
+            rpcClientHandler.close();
+            iterator.remove();
+        }
     }
 
 
@@ -129,6 +152,86 @@ public class RpcConnectManager {
     }
 
     private void connect(final Bootstrap b, InetSocketAddress socketAddress) {
+        // 1. 发起连接
+        ChannelFuture channelFuture = b.connect(socketAddress);
 
+        // 2. 连接成功时：添加监听，把连接放入缓存中
+        channelFuture.addListener((ChannelFutureListener) future -> {
+            if (future.isSuccess()) {
+                log.info("成功连接到服务端 {}", socketAddress);
+                // 从该通道上注册的 pipeline 中拿到 RpcClientHandler
+                RpcClientHandler rpcClientHandler = future.channel().pipeline().get(RpcClientHandler.class);
+                // 这里需要注意的是，该回调时机不一定会在 RpcClientHandler.channelActive 方法之后
+                // 所以不一定能从 RpcClientHandler 中获取到 socketAddress
+                addHandler(socketAddress, rpcClientHandler);
+            }
+        });
+
+        // 3. 连接失败时：添加监听，清除资源后进行发起重新连接操作
+
+        // 当通过关闭时，添加一个连接
+        channelFuture.channel().closeFuture().addListener((ChannelFutureListener) future -> {
+            log.info("channel close operationComplete: remote={}", socketAddress);
+            // 使用 eventLoop 线程池执行一个延迟任务
+            // 这里设置在 3 秒后执行一个任务
+            future.channel().eventLoop().schedule(() -> {
+                log.warn("连接失败，进行重新连接");
+                // 清除连接
+                clearConnected(socketAddress);
+                // 发起重连
+                this.connect(b, socketAddress);
+            }, 3, TimeUnit.SECONDS);
+        });
+    }
+
+    private void addHandler(InetSocketAddress socketAddress, RpcClientHandler handler) {
+        connectedHandlerMap.put(socketAddress, handler);
+        signalAvailableHandler();
+    }
+
+    private ReentrantLock connectedLock = new ReentrantLock();
+    private Condition connectedCondition = connectedLock.newCondition();
+
+    /**
+     * 唤醒可用的业务执行器
+     */
+    private void signalAvailableHandler() {
+        connectedLock.lock();
+        try {
+            connectedCondition.signalAll();
+        } finally {
+            connectedLock.unlock();
+        }
+    }
+
+    /**
+     * 清除连接资源
+     * <pre>
+     *     1. 断开与服务器的连接
+     *     2. 从缓存中 connectedHandlerMap 移除该地址的信息
+     * </pre>
+     *
+     * @param socketAddress
+     */
+    private void clearConnected(InetSocketAddress socketAddress) {
+        // 清理已缓存的所有连接资源
+        if (socketAddress == null) {
+            connectedHandlerMap.forEach((inetSocketAddress, handler) -> {
+                handler.close();
+            });
+            connectedHandlerMap.clear();
+            return;
+        }
+
+        RpcClientHandler cacheClientHandler = connectedHandlerMap.get(socketAddress);
+        if (cacheClientHandler != null) {
+            // 删除缓存条目之前，需要先释放资源（断开连接）
+            cacheClientHandler.close();
+            // 这里解密下，为什么 给 map 一个不同的对象，但是能获取到相同的值?
+            // 秘密在于：java.net.InetSocketAddress.InetSocketAddressHolder.hashCode
+            // map 是通过 key 的 hashCode 查找内容的，而 InetSocketAddressHolder.hashCode 里面使用的是字符串的 host 的 hashcode + port
+            // 这里从 channel 取出来的 SocketAddress 就是 InetSocketAddress，虽然不是和 map 里面的 key 是同一个实例
+            connectedHandlerMap.remove(cacheClientHandler);
+        }
     }
 }
