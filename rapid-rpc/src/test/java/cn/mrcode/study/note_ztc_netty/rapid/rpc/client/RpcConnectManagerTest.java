@@ -9,7 +9,7 @@ import java.util.Iterator;
  */
 class RpcConnectManagerTest {
     public static void main(String[] args) {
-        RpcConnectManager rcm = RpcConnectManager.getInstance();
-        rcm.connect("localhost:8086");
+        RpcClient rpcClient = new RpcClient("localhost:8086", 10);
+        rpcClient.stop();
     }
 }
