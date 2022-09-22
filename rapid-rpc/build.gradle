@@ -10,8 +10,9 @@ repositories {
 }
 
 dependencies {
-  compileOnly 'org.projectlombok:lombok:1.18.24'
+  implementation 'org.projectlombok:lombok:1.18.24'
   annotationProcessor 'org.projectlombok:lombok:1.18.24'
+  testAnnotationProcessor 'org.projectlombok:lombok:1.18.24'
 
   // 添加依赖，使用 spring bean 相关的一些东西
   implementation 'org.springframework:spring-context:5.3.22'
