@@ -4,6 +4,7 @@ import cn.mrcode.study.note_ztc_netty.rapid.rpc.codec.RpcDecoder;
 import cn.mrcode.study.note_ztc_netty.rapid.rpc.codec.RpcEncoder;
 import cn.mrcode.study.note_ztc_netty.rapid.rpc.codec.RpcRequest;
 import cn.mrcode.study.note_ztc_netty.rapid.rpc.codec.RpcResponse;
+import cn.mrcode.study.note_ztc_netty.rapid.rpc.config.provider.ProviderConfig;
 import io.netty.bootstrap.ServerBootstrap;
 import io.netty.channel.*;
 import io.netty.channel.nio.NioEventLoopGroup;
@@ -12,6 +13,8 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -81,11 +84,15 @@ public class RpcServer {
         channelFuture.await(5000, TimeUnit.MILLISECONDS);
     }
 
+    private volatile Map<String, Object> handlerMap = new HashMap<>();
+
     /**
      * 程序注册器
      */
-    public void registerProcessor() {
-
+    public void registerProcessor(ProviderConfig providerConfig) {
+        // key: userService 接口
+        // value : userService 接口下的具体实现类实例对象
+        handlerMap.put(providerConfig.getInterfaceClass(), providerConfig.getRef());
     }
 
     /**
