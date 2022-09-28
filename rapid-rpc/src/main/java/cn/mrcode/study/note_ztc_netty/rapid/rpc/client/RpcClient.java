@@ -47,4 +47,24 @@ public class RpcClient {
         syncProxyIntanceMap.put(interfaceClass, proxy);
         return (T) proxy;
     }
+
+
+    private final Map<Class<?>, RpcAsyncProxy> asyncProxyIntanceMap = new ConcurrentHashMap<>();
+
+    /**
+     * 异步代理创建
+     *
+     * @param interfaceClass
+     * @param <T>
+     * @return
+     */
+    public <T> RpcAsyncProxy invokeAsync(Class<T> interfaceClass) {
+        RpcAsyncProxy proxy = asyncProxyIntanceMap.get(interfaceClass);
+        if (proxy != null) {
+            return proxy;
+        }
+        proxy = new RpcProxyImpl<>(interfaceClass, timeout);
+        asyncProxyIntanceMap.put(interfaceClass, proxy);
+        return proxy;
+    }
 }

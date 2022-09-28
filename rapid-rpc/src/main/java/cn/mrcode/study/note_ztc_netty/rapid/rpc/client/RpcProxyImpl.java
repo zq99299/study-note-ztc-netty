@@ -4,6 +4,7 @@ import cn.mrcode.study.note_ztc_netty.rapid.rpc.codec.RpcRequest;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
+import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -11,7 +12,7 @@ import java.util.concurrent.TimeUnit;
  * @author mrcode
  * @date 2022/9/26 22:11
  */
-public class RpcProxyImpl<T> implements InvocationHandler {
+public class RpcProxyImpl<T> implements InvocationHandler, RpcAsyncProxy {
     private Class<T> clazz;
     private long timeout;
 
@@ -48,5 +49,59 @@ public class RpcProxyImpl<T> implements InvocationHandler {
         RpcFuture rpcFuture = rpcClientHandler.sendRequest(request);
         Object result = rpcFuture.get(timeout, TimeUnit.SECONDS);
         return result;
+    }
+
+    @Override
+    public RpcFuture call(String functionName, Object... args) {
+        // 1. 设置请求对象
+        RpcRequest request = new RpcRequest();
+        request.setRequestId(UUID.randomUUID().toString());
+        request.setClassName(clazz.getName());
+        request.setMethodName(functionName);
+
+        // 这里最安全的方式不能使用这种方法来获取
+        Class<?>[] parameterTypes = new Class[args.length];
+        for (int i = 0; i < args.length; i++) {
+            Class<?> classType = getClassType(args[i]);
+            parameterTypes[i] = classType;
+        }
+        request.setParameterTypes(parameterTypes);
+        request.setParameters(args);
+
+        RpcClientHandler rpcClientHandler = RpcConnectManager.getInstance().chooseHandler();
+        RpcFuture rpcFuture = rpcClientHandler.sendRequest(request);
+        return rpcFuture;
+    }
+
+    /**
+     * 获取参数类型
+     *
+     * @param obj
+     * @return
+     */
+    private Class<?> getClassType(Object obj) {
+        Class<?> classType = obj.getClass();
+        String typeName = classType.getName();
+        // 基本数据类型
+        switch (typeName) {
+            case "java.lang.Integer":
+                return Integer.TYPE;
+            case "java.lang.Long":
+                return Long.TYPE;
+            case "java.lang.Float":
+                return Float.TYPE;
+            case "java.lang.Double":
+                return Double.TYPE;
+            case "java.Lang.Character":
+                return Character.TYPE;
+            case "java.lang.Boolean":
+                return Boolean.TYPE;
+            case "java.lang.Short":
+                return Short.TYPE;
+            case "java.lang.Byte":
+                return Byte.TYPE;
+        }
+        // 如果没有就返回原始类型
+        return classType;
     }
 }
