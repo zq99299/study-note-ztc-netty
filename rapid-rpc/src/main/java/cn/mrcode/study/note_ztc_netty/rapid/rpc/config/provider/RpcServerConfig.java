@@ -1,6 +1,8 @@
 package cn.mrcode.study.note_ztc_netty.rapid.rpc.config.provider;
 
 import cn.mrcode.study.note_ztc_netty.rapid.rpc.server.RpcServer;
+import lombok.Getter;
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.List;
@@ -14,6 +16,8 @@ import java.util.List;
 @Slf4j
 public class RpcServerConfig {
     private final String host = "127.0.0.1";
+    @Setter
+    @Getter
     private int port;
     private List<ProviderConfig> providerConfigs;
 
@@ -34,6 +38,12 @@ public class RpcServerConfig {
 
         for (ProviderConfig providerConfig : providerConfigs) {
             rpcServer.registerProcessor(providerConfig);
+        }
+
+        try {
+            rpcServer.start();
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
         }
     }
 }

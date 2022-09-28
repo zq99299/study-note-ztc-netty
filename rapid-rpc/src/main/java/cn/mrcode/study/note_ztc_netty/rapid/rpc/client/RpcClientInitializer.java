@@ -16,9 +16,10 @@ public class RpcClientInitializer extends ChannelInitializer<SocketChannel> {
     @Override
     protected void initChannel(SocketChannel ch) throws Exception {
         ch.pipeline()
+                .addLast(new RpcEncoder(RpcRequest.class))
                 .addLast(new LengthFieldBasedFrameDecoder(
                         // 数据包最大长度
-                        65535,
+                        65536,
                         // 长度字段的偏移量
                         0,
                         // 长度字段的长度
@@ -28,7 +29,6 @@ public class RpcClientInitializer extends ChannelInitializer<SocketChannel> {
                         // 从解码帧中剥离的第一个字节数
                         0
                 ))
-                .addLast(new RpcEncoder(RpcRequest.class))
                 .addLast(new RpcDecoder(RpcResponse.class))
                 .addLast(new RpcClientHandler());
     }

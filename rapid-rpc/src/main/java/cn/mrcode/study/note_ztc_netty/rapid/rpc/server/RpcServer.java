@@ -27,7 +27,7 @@ public class RpcServer {
     private EventLoopGroup bossGroup = new NioEventLoopGroup();
     private EventLoopGroup workerGroup = new NioEventLoopGroup();
 
-    public RpcServer(String serverAddress) {
+    public RpcServer(String serverAddress) throws InterruptedException {
         this.serverAddress = serverAddress;
     }
 
@@ -36,7 +36,7 @@ public class RpcServer {
      *
      * @throws InterruptedException
      */
-    private void start() throws InterruptedException {
+    public void start() throws InterruptedException {
         ServerBootstrap serverBootstrap = new ServerBootstrap();
         serverBootstrap.group(bossGroup, workerGroup)
                 .channel(NioServerSocketChannel.class)
@@ -46,9 +46,10 @@ public class RpcServer {
                     @Override
                     protected void initChannel(SocketChannel ch) throws Exception {
                         ch.pipeline()
+                                .addLast(new RpcEncoder(RpcResponse.class))
                                 .addLast(new LengthFieldBasedFrameDecoder(
                                         // 数据包最大长度
-                                        65535,
+                                        65536,
                                         // 长度字段的偏移量
                                         0,
                                         // 长度字段的长度
@@ -59,9 +60,8 @@ public class RpcServer {
                                         0
                                 ))
                                 // 这里与客户端刚好相反
-                                .addLast(new RpcEncoder(RpcResponse.class))
                                 .addLast(new RpcDecoder(RpcRequest.class))
-                                .addLast(new RpcServerHandler());
+                                .addLast(new RpcServerHandler(handlerMap));
                     }
                 });
 
