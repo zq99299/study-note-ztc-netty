@@ -13,6 +13,7 @@ import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.UUID;
+import java.util.function.Consumer;
 
 /**
  * @author mrcode
@@ -21,16 +22,14 @@ import java.util.UUID;
 @Slf4j
 public class RpcClient {
     private NioEventLoopGroup workGroup = new NioEventLoopGroup();
-
-    private String serverAddress;
-
     private Channel channel;
+    private RpcClientConfig config;
 
     /**
-     * @param serverAddress 要连接到哪一个服务端
+     * @param config 要连接到哪一个服务端
      */
-    public RpcClient(String serverAddress) {
-        this.serverAddress = serverAddress;
+    public RpcClient(RpcClientConfig config) {
+        this.config = config;
     }
 
 
@@ -61,9 +60,8 @@ public class RpcClient {
                     }
                 });
 
-        String[] items = serverAddress.split(":");
-        String host = items[0];
-        int port = Integer.parseInt(items[1]);
+        String host = config.getHost();
+        int port = config.getPort();
         try {
             // 链接服务端，并等待完成,
             // syncUninterruptibly 方法不抛出中断异常，而 sync 方法会抛出一个异常
