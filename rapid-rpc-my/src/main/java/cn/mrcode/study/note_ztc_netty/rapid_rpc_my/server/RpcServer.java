@@ -18,10 +18,25 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class RpcServer {
-    public static void start() throws InterruptedException {
-        NioEventLoopGroup bossGroup = new NioEventLoopGroup();
-        NioEventLoopGroup workGroup = new NioEventLoopGroup();
+    private String serverAddress;
 
+    // 两个 group 由于需要释放资源，所以提升为成员
+    private EventLoopGroup bossGroup = new NioEventLoopGroup();
+    private EventLoopGroup workGroup = new NioEventLoopGroup();
+
+    /**
+     * @param serverAddress ip:port，监听 ip 地址和端口，一般是 127.0.0.1:8765
+     */
+    public RpcServer(String serverAddress) {
+        this.serverAddress = serverAddress;
+    }
+
+    /**
+     * 启动服务
+     *
+     * @param isSync 是否同步等待，如果为 true，该方法会一直阻塞，直到服务端断开关闭服务
+     */
+    public void start(boolean isSync) {
         ServerBootstrap bootstrap = new ServerBootstrap();
         bootstrap.group(bossGroup, workGroup)
                 .channel(NioServerSocketChannel.class)
@@ -31,9 +46,12 @@ public class RpcServer {
                     protected void initChannel(SocketChannel ch) throws Exception {
                         // 这里仅仅只是添加一个业务处理器： ServerHandler
                         ch.pipeline()
+                                // 自定义协议的编码器，服务端对 RpcResponse 编码，因为服务端只响应 RpcResponse
                                 .addLast(new RpcEncoder(RpcResponse.class))
+                                // 简单的长度头 + 对应长度的消息体协议解码器
+                                // 有值参数含义：一条消息的最大长度、消息头占用几个字节
                                 .addLast(new LengthFieldBasedFrameDecoder(65536, 0, 4, 0, 0))
-                                // 这里与客户端刚好相反
+                                // 自定义协议的解码器，服务端对 RpcRequest 解码，因为服务端只接受 RpcRequest
                                 .addLast(new RpcDecoder(RpcRequest.class))
                                 .addLast(new SimpleChannelInboundHandler<RpcRequest>() {
 
@@ -48,14 +66,33 @@ public class RpcServer {
                                 });
                     }
                 });
-        // 绑定端口，同步等待成功
-        // 使用 channel 级别的监听 close 端口，阻塞方式
-        // 我们现在准备好了。剩下的工作就是绑定到端口并启动服务器。这里，我们绑定到机器中所有 nic(网络接口卡) 的 8765 端口。
-        // 现在，您可以随时调用 bind() 方法(使用不同的绑定地址)。
-        ChannelFuture channelFuture = bootstrap.bind(8765).sync();
-        channelFuture.channel().closeFuture().sync();
 
-        // 释放资源：关闭线程池，关闭 channel
+        String[] items = serverAddress.split(":");
+        String host = items[0];
+        int port = Integer.parseInt(items[1]);
+
+        try {
+            ChannelFuture channelFuture = bootstrap.bind(host, port).sync();
+            log.info("服务端启动成功，host={},port={}", host, port);
+            if (isSync) {
+                ChannelFuture closeFuture = channelFuture.channel().closeFuture();
+                // 添加一个监听器
+                closeFuture.addListener((ChannelFutureListener) future -> {
+                    log.info("服务端已关闭服务");
+                });
+                closeFuture.sync();
+            }
+        } catch (Exception e) {
+            log.error("服务端启动失败，host={},port={}", host, port);
+            throw new RuntimeException(e);
+        }
+    }
+
+    /**
+     * 关闭服务
+     */
+    public void close() {
+        // 具有合理值的 优雅的关闭方式
         bossGroup.shutdownGracefully();
         workGroup.shutdownGracefully();
     }

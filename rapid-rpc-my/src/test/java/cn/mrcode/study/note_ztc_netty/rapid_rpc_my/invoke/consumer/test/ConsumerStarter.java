@@ -7,6 +7,8 @@ import cn.mrcode.study.note_ztc_netty.rapid_rpc_my.server.RpcServer;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
 
+import java.util.concurrent.TimeUnit;
+
 
 /**
  * 调用者测试
@@ -36,12 +38,35 @@ public class ConsumerStarter {
     }
 
     @Test
-    public void serverTest() throws InterruptedException {
-        RpcServer.start();
+    public void serverTest() {
+        String serverAddress = "0.0.0.0:8765";
+        RpcServer rpcServer = new RpcServer(serverAddress);
+
+        // 使用线程来测试 5 秒后关闭服务，测试服务关闭的 ChannelFuture 添加的监听器是否能正常工作
+//        new Thread(() -> {
+//            try {
+//                // 5 秒后关闭服务
+//                TimeUnit.SECONDS.sleep(5);
+//                rpcServer.close();
+//            } catch (InterruptedException e) {
+//                throw new RuntimeException(e);
+//            }
+//        }).start();
+
+        // 启动服务，这里使用同步等待服务关闭，不然这个测试线程启动后就被关闭了
+        rpcServer.start(true);
+        log.info("服务已关闭");
     }
 
     @Test
     public void clientTest() throws InterruptedException {
-        RpcClient.start();
+        String serverAddress = "0.0.0.0:8765";
+        RpcClient rpcClient = new RpcClient(serverAddress);
+        rpcClient.start(false);
+
+        rpcClient.sendRequest();
+
+        // 发送完成之后，等待几秒，等待客户端的响应
+        TimeUnit.SECONDS.sleep(5);
     }
 }
