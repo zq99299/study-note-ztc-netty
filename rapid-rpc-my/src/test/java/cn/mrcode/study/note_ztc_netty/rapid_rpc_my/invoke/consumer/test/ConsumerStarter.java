@@ -26,7 +26,6 @@ public class ConsumerStarter {
      * 期望：服务端暴露服务
      */
     public void expectProvider() {
-        HelloServiceImpl helloService = new HelloServiceImpl();
         // 有一个服务，期望暴露给客户端，客户端可以发起调用
     }
 

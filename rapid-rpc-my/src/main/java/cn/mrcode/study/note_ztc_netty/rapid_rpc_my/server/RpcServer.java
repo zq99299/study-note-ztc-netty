@@ -12,6 +12,9 @@ import io.netty.channel.socket.nio.NioServerSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.HashMap;
+import java.util.Map;
+
 /**
  * @author mrcode
  * @date 2022/10/3 12:12
@@ -23,6 +26,7 @@ public class RpcServer {
     // 两个 group 由于需要释放资源，所以提升为成员
     private EventLoopGroup bossGroup = new NioEventLoopGroup();
     private EventLoopGroup workGroup = new NioEventLoopGroup();
+    private volatile Map<String, Object> handlerMap = new HashMap<>();
 
     /**
      * @param serverAddress ip:port，监听 ip 地址和端口，一般是 127.0.0.1:8765
@@ -53,26 +57,7 @@ public class RpcServer {
                                 .addLast(new LengthFieldBasedFrameDecoder(65536, 0, 4, 0, 0))
                                 // 自定义协议的解码器，服务端对 RpcRequest 解码，因为服务端只接受 RpcRequest
                                 .addLast(new RpcDecoder(RpcRequest.class))
-                                .addLast(new SimpleChannelInboundHandler<RpcRequest>() {
-
-                                    @Override
-                                    protected void channelRead0(ChannelHandlerContext ctx, RpcRequest msg) throws Exception {
-                                        log.info("接收消息：{}", msg);
-                                        RpcResponse response = new RpcResponse();
-                                        response.setRequestId(msg.getRequestId());
-                                        response.setResult("调用成功");
-
-                                        Object[] parameters = msg.getParameters();
-                                        for (Object parameter : parameters) {
-                                            if (parameter instanceof String) {
-                                                if ("异常".equals(parameter)) {
-                                                    response.setThrowable(new RuntimeException("模拟异常"));
-                                                }
-                                            }
-                                        }
-                                        ctx.writeAndFlush(response);
-                                    }
-                                });
+                                .addLast(new RpcServerHandler(handlerMap));
                     }
                 });
 
@@ -104,5 +89,17 @@ public class RpcServer {
         // 具有合理值的 优雅的关闭方式
         bossGroup.shutdownGracefully();
         workGroup.shutdownGracefully();
+    }
+
+
+    /**
+     * 注册服务
+     *
+     * @param providerConfig
+     */
+    public void registerProcessor(ProviderConfig providerConfig) {
+        // key: userService 接口
+        // value : userService 接口下的具体实现类实例对象
+        handlerMap.put(providerConfig.getClassName(), providerConfig.getRef());
     }
 }

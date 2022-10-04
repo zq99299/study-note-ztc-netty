@@ -2,6 +2,8 @@ import cn.mrcode.study.note_ztc_netty.rapid_rpc_my.client.RpcClient;
 import cn.mrcode.study.note_ztc_netty.rapid_rpc_my.client.RpcClientConfig;
 import cn.mrcode.study.note_ztc_netty.rapid_rpc_my.client.RpcClientManager;
 import cn.mrcode.study.note_ztc_netty.rapid_rpc_my.invoke.HelloService;
+import cn.mrcode.study.note_ztc_netty.rapid_rpc_my.invoke.provider.test.HelloServiceImpl;
+import cn.mrcode.study.note_ztc_netty.rapid_rpc_my.server.ProviderConfig;
 import cn.mrcode.study.note_ztc_netty.rapid_rpc_my.server.RpcServer;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
@@ -22,9 +24,19 @@ public class Demo {
     @Test
     public void server2Test() {
         RpcServer rs1 = new RpcServer("0.0.0.0:8765");
+        // 注册服务
+        rs1.registerProcessor(ProviderConfig.builder()
+                .className(HelloService.class.getName())
+                .ref(new HelloServiceImpl("微服务 A - 实例 1"))
+                .build());
         rs1.start(false);
 
         RpcServer rs2 = new RpcServer("0.0.0.0:8766");
+        // 注册服务
+        rs2.registerProcessor(ProviderConfig.builder()
+                .className(HelloService.class.getName())
+                .ref(new HelloServiceImpl("微服务 A - 实例 2"))
+                .build());
         rs2.start(true);
     }
 
@@ -44,6 +56,8 @@ public class Demo {
                 .host("0.0.0.0")
                 .port(8766)
                 .build());
+
+        // 注册服务
         rpcClientManager.start(list);
 
         // 等待 2 秒后，再获取
@@ -53,6 +67,10 @@ public class Demo {
         // 获取一个服务代理
         HelloService helloService = rpcClientManager.getProxy("A", HelloService.class);
         String result = helloService.hello("张山");
+        System.out.println(result);
+        result = helloService.hello("张山");
+        System.out.println(result);
+        result = helloService.hello("张山");
         System.out.println(result);
 
         // 调用异常模拟，这里传递异常，在客户端的实现里面，针对这个  异常  进行抛出一个真实的异常
