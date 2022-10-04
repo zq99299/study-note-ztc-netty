@@ -12,9 +12,6 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import lombok.extern.slf4j.Slf4j;
 
-import java.util.UUID;
-import java.util.function.Consumer;
-
 /**
  * @author mrcode
  * @date 2022/10/3 12:13
@@ -88,15 +85,13 @@ public class RpcClient {
 
     /**
      * 发送请求
+     *
+     * @return
      */
-    public void sendRequest() {
-        RpcRequest rpcRequest = new RpcRequest();
-        rpcRequest.setRequestId(UUID.randomUUID().toString());
-        rpcRequest.setMethodName("hello");
-        rpcRequest.setParameters(new Object[]{"张三"});
-        // rpcRequest.setParameterTypes(new Class[]{HelloService.class});
+    public RpcFuture sendRequest(RpcRequest request) {
         // 发送一条数据到服务端
-        channel.writeAndFlush(rpcRequest);
+        channel.writeAndFlush(request);
+        return new RpcFuture();
     }
 
     public void close() {

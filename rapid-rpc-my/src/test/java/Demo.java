@@ -1,6 +1,7 @@
 import cn.mrcode.study.note_ztc_netty.rapid_rpc_my.client.RpcClient;
 import cn.mrcode.study.note_ztc_netty.rapid_rpc_my.client.RpcClientConfig;
 import cn.mrcode.study.note_ztc_netty.rapid_rpc_my.client.RpcClientManager;
+import cn.mrcode.study.note_ztc_netty.rapid_rpc_my.invoke.HelloService;
 import cn.mrcode.study.note_ztc_netty.rapid_rpc_my.server.RpcServer;
 import lombok.extern.slf4j.Slf4j;
 import org.junit.jupiter.api.Test;
@@ -49,9 +50,10 @@ public class Demo {
         // 后续在来解决这里获取需要先手动等待的问题
         TimeUnit.SECONDS.sleep(2);
 
-        // 获得一个服务的 连接
-        RpcClient rpcClient = rpcClientManager.chooseClient("A");
-        rpcClient.sendRequest();
+        // 获取一个服务代理
+        HelloService helloService = rpcClientManager.getProxy("A", HelloService.class);
+        String result = helloService.hello("张山");
+        System.out.println(result);
 
         // 发送完成之后，等待几秒，等待客户端的响应
         TimeUnit.SECONDS.sleep(5);

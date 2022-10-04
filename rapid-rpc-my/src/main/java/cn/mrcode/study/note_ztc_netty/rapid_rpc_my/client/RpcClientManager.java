@@ -2,6 +2,7 @@ package cn.mrcode.study.note_ztc_netty.rapid_rpc_my.client;
 
 import lombok.extern.slf4j.Slf4j;
 
+import java.lang.reflect.Proxy;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.*;
@@ -89,5 +90,47 @@ public class RpcClientManager {
         }
         int index = ThreadLocalRandom.current().nextInt(rpcClients.size());
         return rpcClients.get(index);
+    }
+
+
+    /**
+     * 用于存放对应服务的接口代理实现
+     */
+    private Map<String /* appName */, Map<Class /* 接口 class */, Object /* 该接口对应的代理 */>> proxyCache = new ConcurrentHashMap<>();
+
+    /**
+     * 获取接口代理对象
+     *
+     * @param interfaceClass 要调用远程的哪一个类
+     * @param <T>
+     * @return
+     */
+    public <T> T getProxy(String appName, Class<T> interfaceClass) {
+        Map<Class, Object> proxyMap = proxyCache.get(appName);
+        if (proxyMap == null) {
+            ConcurrentHashMap<Class, Object> newMap = new ConcurrentHashMap<>();
+            Map<Class, Object> old = proxyCache.putIfAbsent(appName, newMap);
+            // 表示是新增的 map
+            if (old == null) {
+                proxyMap = newMap;
+            } else {
+                // 如果存在，表示其他线程已经设置过了
+                proxyMap = old;
+            }
+        }
+
+        Object cacheProxy = proxyMap.get(interfaceClass);
+        if (cacheProxy != null) {
+            return (T) cacheProxy;
+        }
+
+        // jdk 代理
+        Object proxy = Proxy.newProxyInstance(
+                interfaceClass.getClassLoader(),
+                new Class[]{interfaceClass},
+                new RpcProxyImpl<>(appName, interfaceClass, this)
+        );
+        proxyMap.putIfAbsent(interfaceClass, proxy);
+        return (T) proxy;
     }
 }
