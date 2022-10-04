@@ -12,6 +12,9 @@ import io.netty.channel.socket.nio.NioSocketChannel;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+
 /**
  * @author mrcode
  * @date 2022/10/3 12:13
@@ -21,6 +24,8 @@ public class RpcClient {
     private NioEventLoopGroup workGroup = new NioEventLoopGroup();
     private Channel channel;
     private RpcClientConfig config;
+    private Map<String /* requestId */, RpcFuture> pendingRpcTable = new ConcurrentHashMap<>();
+
 
     /**
      * @param config 要连接到哪一个服务端
@@ -51,7 +56,14 @@ public class RpcClient {
 
                                     @Override
                                     protected void channelRead0(ChannelHandlerContext ctx, RpcResponse msg) throws Exception {
-                                        log.info("接收到响应消息：{}", msg);
+                                        String requestId = msg.getRequestId();
+                                        RpcFuture rpcFuture = pendingRpcTable.get(requestId);
+                                        if (rpcFuture != null) {
+                                            // 回调结果处理
+                                            rpcFuture.done(msg);
+                                            // 移除映射关系
+                                            pendingRpcTable.remove(requestId);
+                                        }
                                     }
                                 });
                     }
@@ -89,9 +101,11 @@ public class RpcClient {
      * @return
      */
     public RpcFuture sendRequest(RpcRequest request) {
+        RpcFuture rpcFuture = new RpcFuture(request);
+        pendingRpcTable.put(request.getRequestId(), rpcFuture);
         // 发送一条数据到服务端
         channel.writeAndFlush(request);
-        return new RpcFuture();
+        return rpcFuture;
     }
 
     public void close() {

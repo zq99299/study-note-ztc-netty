@@ -1,6 +1,7 @@
 package cn.mrcode.study.note_ztc_netty.rapid_rpc_my.client;
 
 import cn.mrcode.study.note_ztc_netty.rapid_rpc_my.codec.RpcRequest;
+import cn.mrcode.study.note_ztc_netty.rapid_rpc_my.codec.RpcResponse;
 
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
@@ -51,7 +52,13 @@ public class RpcProxyImpl<T> implements InvocationHandler {
 
         // 3. 发送真正的客户端请求，返回结果
         RpcFuture rpcFuture = rpcClient.sendRequest(request);
-        Object result = rpcFuture.get();
-        return result;
+        RpcResponse rpcResponse = rpcFuture.get();
+
+        // 如果有异常，则直接抛出
+        Throwable throwable = rpcResponse.getThrowable();
+        if (throwable != null) {
+            throw throwable;
+        }
+        return rpcResponse.getResult();
     }
 }

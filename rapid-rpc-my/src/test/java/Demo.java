@@ -55,6 +55,14 @@ public class Demo {
         String result = helloService.hello("张山");
         System.out.println(result);
 
+        // 调用异常模拟，这里传递异常，在客户端的实现里面，针对这个  异常  进行抛出一个真实的异常
+        try {
+            result = helloService.hello("异常");
+            System.out.println(result);
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
         // 发送完成之后，等待几秒，等待客户端的响应
         TimeUnit.SECONDS.sleep(5);
 

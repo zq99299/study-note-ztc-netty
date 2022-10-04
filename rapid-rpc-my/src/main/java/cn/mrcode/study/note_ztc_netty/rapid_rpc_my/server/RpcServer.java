@@ -61,6 +61,15 @@ public class RpcServer {
                                         RpcResponse response = new RpcResponse();
                                         response.setRequestId(msg.getRequestId());
                                         response.setResult("调用成功");
+
+                                        Object[] parameters = msg.getParameters();
+                                        for (Object parameter : parameters) {
+                                            if (parameter instanceof String) {
+                                                if ("异常".equals(parameter)) {
+                                                    response.setThrowable(new RuntimeException("模拟异常"));
+                                                }
+                                            }
+                                        }
                                         ctx.writeAndFlush(response);
                                     }
                                 });
